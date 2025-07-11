@@ -18,6 +18,15 @@ A Docker-based homelab setup for running Ollama with Open-WebUI, accessible both
 - **Local Access**: `http://localhost:5000`
 - **Public Access**: `https://your-domain.com` (configured via Cloudflare tunnel)
 
+### N8N
+- **Container**: `n8nio/n8n:latest`
+- **Local Port**: 5678
+- **Container Port**: 5678
+- **Purpose**: Workflow automation platform
+- **Local Access**: `http://localhost:5678`
+- **Public Access**: `https://your-domain.com` (configured via Cloudflare tunnel)
+- **Authentication**: Basic auth with username/password
+
 ### Cloudflare Tunnel
 - **Container**: `cloudflare/cloudflared:latest`
 - **Tunnel Name**: Ollama
@@ -44,6 +53,7 @@ A Docker-based homelab setup for running Ollama with Open-WebUI, accessible both
    # Copy the .env file and add your Cloudflare tunnel token
    cp .env.example .env
    # Edit .env and add your CLOUDFLARED_TUNNEL_TOKEN
+   # Also set N8N_USERNAME and N8N_PASSWORD for n8n authentication
    ```
 
 3. **Start the services**:
@@ -56,18 +66,22 @@ A Docker-based homelab setup for running Ollama with Open-WebUI, accessible both
    ```
 
 4. **Access the services**:
-   - **Local**: Open `http://localhost:5000` in your browser
-   - **Remote**: Open your configured Cloudflare tunnel domain in your browser
+   - **Local**:
+     - Open-WebUI: `http://localhost:5000`
+     - N8N: `http://localhost:5678`
+   - **Remote**: Open your configured Cloudflare tunnel domains in your browser
 
 ## Configuration
 
 ### Ports
 - Open-WebUI: `5000:8080` (host:container)
+- N8N: `5678:5678` (host:container)
 - Ollama API: `11434:11434` (host:container)
 
 ### Volumes
 - `ollama`: Persistent storage for downloaded models
 - `open-webui`: Persistent storage for user data and settings
+- `n8n`: Persistent storage for workflows and credentials
 
 ### Networks
 - `intranet`: Internal Docker network for service communication
@@ -116,6 +130,7 @@ docker-compose logs
 
 # Specific service
 docker-compose logs open-webui
+docker-compose logs n8n
 docker-compose logs ollama
 docker-compose logs cloudflared
 ```
@@ -143,8 +158,8 @@ docker logs cloudflared
 homelab/
 ├── docker-compose.yml    # Service definitions
 ├── .env                  # Environment variables
-├── start.ps1            # Windows startup script
-└── README.md            # This file
+├── start.ps1             # Windows startup script
+└── README.md             # This file
 ```
 
 ## Support
@@ -152,4 +167,5 @@ homelab/
 For issues related to:
 - **Ollama**: Check the [Ollama documentation](https://ollama.ai/docs)
 - **Open-WebUI**: Check the [Open-WebUI repository](https://github.com/open-webui/open-webui)
+- **N8N**: Check the [N8N documentation](https://docs.n8n.io/)
 - **Cloudflare Tunnel**: Check the [Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) 
