@@ -12,13 +12,13 @@ services:
               count: 1
               capabilities: [ "gpu" ]
     volumes:
-      - ollama:/root/.ollama # Ensure existing model data persists
+      - ./data/ollama:/root/.ollama # Host bind mount for persistence
     networks:
       - intranet
     restart: unless-stopped
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.6.1
+    image: ghcr.io/open-webui/open-webui:v0.6.15
     container_name: open-webui
     ports:
       - "5000:8080" # Maps container's port 8080 to host's port 5000
@@ -27,7 +27,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - open-webui:/app/backend/data
+      - ./data/open-webui:/app/backend/data # Host bind mount for persistence
     restart: unless-stopped
     deploy:
       resources:
@@ -52,7 +52,7 @@ services:
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=UTC
     volumes:
-      - n8n:/home/node/.n8n
+      - ./data/n8n:/home/node/.n8n # Host bind mount for persistence
     networks:
       - intranet
     restart: unless-stopped
@@ -70,11 +70,3 @@ services:
 networks:
   intranet:
     driver: bridge
-
-volumes:
-  ollama:
-    external: true
-  open-webui:
-    external: true
-  n8n:
-    external: true
