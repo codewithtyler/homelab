@@ -31,3 +31,6 @@ $RECYCLE.BIN/
 .env
 .env.*
 !.env.example
+
+# Docker
+data/
