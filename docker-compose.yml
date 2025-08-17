@@ -22,6 +22,9 @@ services:
     container_name: open-webui
     ports:
       - "5000:8080" # Maps container's port 8080 to host's port 5000
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
     networks:
       - intranet
     extra_hosts:
@@ -51,6 +54,7 @@ services:
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=UTC
+      - N8N_TRUST_PROXY=true
     volumes:
       - ./data/n8n:/home/node/.n8n # Host bind mount for persistence
     networks:
