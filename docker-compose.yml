@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.6.22
+    image: ghcr.io/open-webui/open-webui:v0.6.25
     container_name: open-webui
     ports:
       - "5000:8080" # Maps container's port 8080 to host's port 5000
