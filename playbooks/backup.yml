@@ -1,0 +1,56 @@
+---
+# Backup homelab data
+- name: Backup Homelab Data
+  hosts: homelab
+  gather_facts: yes
+  become: yes
+
+  tasks:
+    - name: Create backup directory
+      file:
+        path: "{{ backups_dir }}/{{ ansible_date_time.date }}"
+        state: directory
+        mode: '0755'
+
+    - name: Backup Docker volumes
+      archive:
+        path: "{{ data_dir }}"
+        dest: "{{ backups_dir }}/{{ ansible_date_time.date }}/homelab-data-{{ ansible_date_time.date }}.tar.gz"
+        format: gz
+
+    - name: Backup Docker Compose files
+      copy:
+        src: "{{ item }}"
+        dest: "{{ backups_dir }}/{{ ansible_date_time.date }}/"
+      loop:
+        - "{{ docker_compose_file }}"
+        - "{{ mcp_compose_file }}"
+        - "{{ homelab_dir }}/mcp.env"
+        - "{{ homelab_dir }}/.env"
+
+    - name: Backup Ansible configuration
+      archive:
+        path: "{{ homelab_dir }}/playbooks"
+        dest: "{{ backups_dir }}/{{ ansible_date_time.date }}/ansible-playbooks-{{ ansible_date_time.date }}.tar.gz"
+        format: gz
+
+    - name: Clean up old backups (keep last 7 days)
+      find:
+        paths: "{{ backups_dir }}"
+        age: "7d"
+        file_type: directory
+      register: old_backups
+
+    - name: Remove old backups
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_backups.files }}"
+
+    - name: Display backup summary
+      debug:
+        msg: |
+          Backup completed:
+          - Data: {{ backups_dir }}/{{ ansible_date_time.date }}/homelab-data-{{ ansible_date_time.date }}.tar.gz
+          - Configs: {{ backups_dir }}/{{ ansible_date_time.date }}/
+          - Playbooks: {{ backups_dir }}/{{ ansible_date_time.date }}/ansible-playbooks-{{ ansible_date_time.date }}.tar.gz

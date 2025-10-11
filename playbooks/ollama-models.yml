@@ -1,0 +1,64 @@
+---
+# Ollama model management
+- name: Manage Ollama Models
+  hosts: homelab
+  gather_facts: yes
+  become: yes
+
+  tasks:
+    - name: Check if Ollama container is running
+      docker_container_info:
+        name: ollama
+      register: ollama_container
+
+    - name: Start Ollama if not running
+      docker_compose:
+        project_src: "{{ homelab_dir }}"
+        files:
+          - "{{ docker_compose_file }}"
+        services:
+          - ollama
+        state: present
+      when: ollama_container.exists == false
+
+    - name: Wait for Ollama to be ready
+      wait_for:
+        port: "{{ ollama_port }}"
+        host: localhost
+        timeout: 60
+      when: ollama_container.exists == false
+
+    - name: Get current models
+      command: docker exec ollama ollama list --json
+      register: current_models
+      changed_when: false
+
+    - name: Parse current models
+      set_fact:
+        current_model_list: "{{ current_models.stdout | from_json }}"
+
+    - name: Pull required models
+      command: docker exec ollama ollama pull "{{ item }}"
+      loop: "{{ ollama_models }}"
+      register: model_pull_results
+      failed_when: false
+
+    - name: Remove unwanted models
+      command: docker exec ollama ollama rm "{{ item.name }}:{{ item.tag }}"
+      loop: "{{ current_model_list }}"
+      when: "item.name + ':' + item.tag not in ollama_models"
+      register: model_remove_results
+      failed_when: false
+
+    - name: Display model management results
+      debug:
+        msg: |
+          Model Management Results:
+          {% for result in model_pull_results.results %}
+          {{ result.item }}: {{ 'Success' if result.rc == 0 else 'Failed' }}
+          {% endfor %}
+
+          Removed Models:
+          {% for result in model_remove_results.results | default([]) %}
+          {{ result.item.name }}:{{ result.item.tag }}: {{ 'Success' if result.rc == 0 else 'Failed' }}
+          {% endfor %}

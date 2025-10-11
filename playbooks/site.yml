@@ -1,0 +1,25 @@
+---
+# Main homelab playbook - orchestrates all services
+- name: Homelab Infrastructure Setup
+  hosts: homelab
+  gather_facts: yes
+  become: yes
+
+  vars:
+    homelab_dir: "{{ ansible_env.PWD }}"
+
+  tasks:
+    - name: Include homelab setup
+      include_tasks: homelab-setup.yml
+
+    - name: Include Docker setup
+      include_tasks: docker-setup.yml
+
+    - name: Include service deployment
+      include_tasks: deploy-services.yml
+
+    - name: Include MCP services
+      include_tasks: deploy-mcp.yml
+
+    - name: Include monitoring setup
+      include_tasks: monitoring-setup.yml

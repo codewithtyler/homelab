@@ -1,0 +1,36 @@
+---
+# Deploy main homelab services
+- name: Deploy main services with Docker Compose
+  command: docker-compose up -d
+  register: compose_result
+  changed_when: compose_result.rc == 0
+
+- name: Wait for services to be healthy
+  wait_for:
+    port: "{{ item }}"
+    host: localhost
+    timeout: 60
+  loop:
+    - "{{ ollama_port }}"
+    - "{{ open_webui_port }}"
+    - "{{ n8n_port }}"
+    - "{{ coolify_port }}"
+
+- name: Check service health
+  uri:
+    url: "{{ item.url }}"
+    method: GET
+    status_code: 200
+    timeout: 10
+  loop:
+    - { name: "Ollama", url: "http://localhost:{{ ollama_port }}/api/tags" }
+    - { name: "Open WebUI", url: "http://localhost:{{ open_webui_port }}/" }
+    - { name: "n8n", url: "http://localhost:{{ n8n_port }}/" }
+    - { name: "Coolify", url: "http://localhost:{{ coolify_port }}/" }
+  register: health_checks
+  failed_when: false
+
+- name: Display service status
+  debug:
+    msg: "{{ item.name }}: {{ 'Healthy' if item.status == 200 else 'Unhealthy' }}"
+  loop: "{{ health_checks.results }}"

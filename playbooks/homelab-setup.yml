@@ -1,0 +1,54 @@
+---
+# Homelab directory structure and prerequisites
+- name: Create homelab directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ homelab_dir }}/logs"
+    - "{{ homelab_dir }}/backups"
+    - "{{ homelab_dir }}/scripts"
+    - "{{ homelab_dir }}/data/ollama"
+    - "{{ homelab_dir }}/data/open-webui"
+    - "{{ homelab_dir }}/data/n8n"
+    - "{{ homelab_dir }}/data/coolify"
+    - "{{ homelab_dir }}/data/coolify-redis"
+    - "{{ homelab_dir }}/data/coolify-db"
+    - "{{ homelab_dir }}/data/mcp-servers/tiktok"
+    - "{{ homelab_dir }}/data/mcp-servers/youtube"
+    - "{{ homelab_dir }}/data/mcp-servers/twitter"
+    - "{{ homelab_dir }}/data/mcp-servers/n8n-mcp"
+    - "{{ homelab_dir }}/data/mcp-servers/dashboard"
+
+- name: Check if Docker is available
+  command: docker --version
+  register: docker_version
+  failed_when: false
+  changed_when: false
+
+- name: Display Docker status
+  debug:
+    msg: "Docker status: {{ 'Available' if docker_version.rc == 0 else 'Not available in container' }}"
+
+- name: Check if Docker is running
+  command: docker info
+  register: docker_info
+  failed_when: false
+  changed_when: false
+
+- name: Display Docker daemon status
+  debug:
+    msg: "Docker daemon: {{ 'Running' if docker_info.rc == 0 else 'Not running' }}"
+
+- name: Create Docker network
+  command: docker network create intranet
+  register: network_result
+  failed_when: false
+  changed_when: network_result.rc == 0
+
+- name: Create MCP Docker network
+  command: docker network create mcp-network
+  register: mcp_network_result
+  failed_when: false
+  changed_when: mcp_network_result.rc == 0

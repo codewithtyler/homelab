@@ -1,0 +1,39 @@
+---
+# Docker environment setup and health checks
+- name: Check Docker daemon status
+  uri:
+    url: "http://localhost:2375/info"
+    method: GET
+  register: docker_daemon
+  failed_when: false
+  changed_when: false
+
+- name: Wait for Docker to be ready
+  wait_for:
+    port: 2375
+    host: localhost
+    timeout: 60
+  when: docker_daemon.status != 200
+
+- name: Pull required Docker images
+  command: docker pull "{{ item }}"
+  loop:
+    - "ollama/ollama:latest"
+    - "ghcr.io/open-webui/open-webui:v0.6.33"
+    - "n8nio/n8n:latest"
+    - "coollabsio/coolify:latest"
+    - "redis:7-alpine"
+    - "postgres:15-alpine"
+    - "cloudflare/cloudflared:latest"
+    - "node:18-alpine"
+    - "nginx:alpine"
+    - "ghcr.io/czlonkowski/n8n-mcp:latest"
+
+- name: Clean up unused Docker images
+  command: docker system prune -f
+  register: cleanup_result
+  changed_when: false
+
+- name: Display cleanup results
+  debug:
+    msg: "Docker cleanup completed"

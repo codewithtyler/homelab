@@ -1,0 +1,107 @@
+---
+# Deploy MCP services with API key validation
+- name: Load environment variables
+  include_vars:
+    file: "{{ homelab_dir }}/mcp.env"
+    name: mcp_env
+
+- name: Check TikTok API keys
+  set_fact:
+    tiktok_available: "{{
+      mcp_env.TIKTOK_API_KEY is defined and mcp_env.TIKTOK_API_KEY != 'your_tiktok_api_key_here' and
+      mcp_env.TIKTOK_API_SECRET is defined and mcp_env.TIKTOK_API_SECRET != 'your_tiktok_api_secret_here' and
+      mcp_env.TIKTOK_ACCESS_TOKEN is defined and mcp_env.TIKTOK_ACCESS_TOKEN != 'your_tiktok_access_token_here'
+    }}"
+
+- name: Check YouTube API keys
+  set_fact:
+    youtube_available: "{{
+      mcp_env.YOUTUBE_API_KEY is defined and mcp_env.YOUTUBE_API_KEY != 'your_youtube_api_key_here' and
+      mcp_env.YOUTUBE_CLIENT_ID is defined and mcp_env.YOUTUBE_CLIENT_ID != 'your_youtube_client_id_here' and
+      mcp_env.YOUTUBE_CLIENT_SECRET is defined and mcp_env.YOUTUBE_CLIENT_SECRET != 'your_youtube_client_secret_here' and
+      mcp_env.YOUTUBE_REFRESH_TOKEN is defined and mcp_env.YOUTUBE_REFRESH_TOKEN != 'your_youtube_refresh_token_here'
+    }}"
+
+- name: Check Twitter API keys
+  set_fact:
+    twitter_available: "{{
+      mcp_env.TWITTER_API_KEY is defined and mcp_env.TWITTER_API_KEY != 'your_twitter_api_key_here' and
+      mcp_env.TWITTER_API_SECRET is defined and mcp_env.TWITTER_API_SECRET != 'your_twitter_api_secret_here' and
+      mcp_env.TWITTER_ACCESS_TOKEN is defined and mcp_env.TWITTER_ACCESS_TOKEN != 'your_twitter_access_token_here' and
+      mcp_env.TWITTER_ACCESS_TOKEN_SECRET is defined and mcp_env.TWITTER_ACCESS_TOKEN_SECRET != 'your_twitter_access_token_secret_here' and
+      mcp_env.TWITTER_BEARER_TOKEN is defined and mcp_env.TWITTER_BEARER_TOKEN != 'your_twitter_bearer_token_here'
+    }}"
+
+- name: Check n8n MCP API keys
+  set_fact:
+    n8n_mcp_available: "{{
+      mcp_env.N8N_API_URL is defined and mcp_env.N8N_API_URL != 'your_n8n_api_url_here' and
+      mcp_env.N8N_API_KEY is defined and mcp_env.N8N_API_KEY != 'your_n8n_api_key_here'
+    }}"
+
+- name: Determine available MCP profiles
+  set_fact:
+    mcp_profiles: "{{
+      (['tiktok'] if tiktok_available else []) +
+      (['youtube'] if youtube_available else []) +
+      (['twitter'] if twitter_available else []) +
+      (['n8n-mcp'] if n8n_mcp_available else []) +
+      (['dashboard'] if (tiktok_available or youtube_available or twitter_available or n8n_mcp_available) else [])
+    }}"
+
+- name: Display MCP service availability
+  debug:
+    msg: |
+      MCP Service Status:
+      - TikTok: {{ 'Available' if tiktok_available else 'Missing API keys' }}
+      - YouTube: {{ 'Available' if youtube_available else 'Missing API keys' }}
+      - Twitter: {{ 'Available' if twitter_available else 'Missing API keys' }}
+      - n8n MCP: {{ 'Available' if n8n_mcp_available else 'Missing API keys' }}
+      - Dashboard: {{ 'Available' if mcp_profiles | length > 0 else 'No services available' }}
+
+- name: Deploy MCP services
+  docker_compose:
+    project_src: "{{ homelab_dir }}"
+    files:
+      - "{{ mcp_compose_file }}"
+    profiles: "{{ mcp_profiles }}"
+    env_file: "{{ homelab_dir }}/mcp.env"
+    state: present
+    recreate: always
+    pull: yes
+  when: mcp_profiles | length > 0
+  register: mcp_result
+
+- name: Wait for MCP services to be healthy
+  wait_for:
+    port: "{{ item }}"
+    host: localhost
+    timeout: 60
+  loop:
+    - "{{ tiktok_mcp_port }}"
+    - "{{ youtube_mcp_port }}"
+    - "{{ twitter_mcp_port }}"
+    - "{{ n8n_mcp_port }}"
+    - "{{ mcp_dashboard_port }}"
+  when: mcp_profiles | length > 0
+
+- name: Check MCP service health
+  uri:
+    url: "{{ item.url }}"
+    method: GET
+    status_code: 200
+    timeout: 10
+  loop:
+    - { name: "TikTok MCP", url: "http://localhost:{{ tiktok_mcp_port }}/health" }
+    - { name: "YouTube MCP", url: "http://localhost:{{ youtube_mcp_port }}/health" }
+    - { name: "Twitter MCP", url: "http://localhost:{{ twitter_mcp_port }}/health" }
+    - { name: "n8n MCP", url: "http://localhost:{{ n8n_mcp_port }}/health" }
+    - { name: "MCP Dashboard", url: "http://localhost:{{ mcp_dashboard_port }}/" }
+  register: mcp_health_checks
+  failed_when: false
+  when: mcp_profiles | length > 0
+
+- name: Display MCP service status
+  debug:
+    msg: "{{ item.name }}: {{ 'Healthy' if item.status == 200 else 'Unhealthy' }}"
+  loop: "{{ mcp_health_checks.results | default([]) }}"

@@ -1,0 +1,160 @@
+---
+# Set up monitoring and health checks
+- name: Create monitoring script
+  copy:
+    content: |
+      #!/bin/bash
+      # Homelab Health Monitor
+
+      echo "=== Homelab Health Check ==="
+      echo "Timestamp: $(date)"
+      echo ""
+
+      # Check Docker status
+      if docker info >/dev/null 2>&1; then
+          echo "✓ Docker is running"
+      else
+          echo "✗ Docker is not running"
+          exit 1
+      fi
+
+      # Check main services
+      services=("ollama:11434" "open-webui:5000" "n8n:5678" "coolify:6000")
+      for service in "${services[@]}"; do
+          name=$(echo $service | cut -d: -f1)
+          port=$(echo $service | cut -d: -f2)
+          if curl -s http://localhost:$port >/dev/null 2>&1; then
+              echo "✓ $name is healthy"
+          else
+              echo "✗ $name is unhealthy"
+          fi
+      done
+
+      # Check MCP services
+      mcp_services=("tiktok-mcp:3300" "youtube-mcp:3301" "twitter-mcp:3302" "n8n-mcp:3303" "mcp-dashboard:3304")
+      for service in "${mcp_services[@]}"; do
+          name=$(echo $service | cut -d: -f1)
+          port=$(echo $service | cut -d: -f2)
+          if curl -s http://localhost:$port/health >/dev/null 2>&1; then
+              echo "✓ $name is healthy"
+          else
+              echo "✗ $name is unhealthy"
+          fi
+      done
+
+      echo ""
+      echo "=== Resource Usage ==="
+      docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+
+    dest: "{{ homelab_dir }}/scripts/health-monitor.sh"
+    mode: '0755'
+
+- name: Create update script
+  copy:
+    content: |
+      #!/bin/bash
+      # Homelab Update Script
+
+      echo "=== Homelab Update Process ==="
+      echo "Timestamp: $(date)"
+      echo ""
+
+      # Check for updates using GitHub API
+      check_update() {
+          local owner=$1
+          local repo=$2
+          local current_version=$3
+
+          echo "Checking $owner/$repo for updates..."
+
+          latest_version=$(curl -s "https://api.github.com/repos/$owner/$repo/releases/latest" | jq -r '.tag_name')
+
+          if [ "$latest_version" != "$current_version" ] && [ "$latest_version" != "null" ]; then
+              echo "Update available: $current_version -> $latest_version"
+              return 0
+          else
+              echo "No update available"
+              return 1
+          fi
+      }
+
+      # Check each service
+      updates_needed=false
+
+      if check_update "open-webui" "open-webui" "v0.6.33"; then
+          updates_needed=true
+      fi
+
+      if check_update "n8nio" "n8n" "latest"; then
+          updates_needed=true
+      fi
+
+      if check_update "ollama" "ollama" "latest"; then
+          updates_needed=true
+      fi
+
+      if check_update "coollabsio" "coolify" "latest"; then
+          updates_needed=true
+      fi
+
+      if [ "$updates_needed" = true ]; then
+          echo "Updates available. Pulling latest images..."
+          docker-compose pull
+          docker-compose up -d
+          echo "Update completed"
+      else
+          echo "No updates needed"
+      fi
+
+      # Clean up old images
+      echo "Cleaning up old images..."
+      docker image prune -f
+
+    dest: "{{ homelab_dir }}/scripts/update-homelab.sh"
+    mode: '0755'
+
+- name: Create Ollama model management script
+  copy:
+    content: |
+      #!/bin/bash
+      # Ollama Model Management
+
+      echo "=== Ollama Model Management ==="
+      echo "Timestamp: $(date)"
+      echo ""
+
+      # Check if Ollama container is running
+      if ! docker ps | grep -q ollama; then
+          echo "Ollama container is not running. Starting it..."
+          docker-compose up -d ollama
+          sleep 30
+      fi
+
+      # Desired models
+      models=("deepseek-r1:14b" "llama3.2-vision:11b" "llama3.1:8b" "nomic-embed-text:latest")
+
+      # Get existing models
+      existing_models=$(docker exec ollama ollama list --json | jq -r '.[] | "\(.name):\(.tag)"')
+
+      # Pull missing models
+      for model in "${models[@]}"; do
+          if echo "$existing_models" | grep -q "^$model$"; then
+              echo "✓ Model $model already exists"
+          else
+              echo "Pulling model $model..."
+              docker exec ollama ollama pull "$model"
+          fi
+      done
+
+      # Remove unwanted models
+      echo "$existing_models" | while read -r model; do
+          if [[ ! " ${models[@]} " =~ " ${model} " ]]; then
+              echo "Removing unwanted model: $model"
+              docker exec ollama ollama rm "$model"
+          fi
+      done
+
+      echo "Model management completed"
+
+    dest: "{{ homelab_dir }}/scripts/manage-ollama-models.sh"
+    mode: '0755'

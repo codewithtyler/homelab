@@ -1,171 +1,183 @@
 # Homelab
 
-A Docker-based homelab setup for running Ollama with Open-WebUI, accessible both locally and remotely via Cloudflare tunnel.
+A comprehensive Docker-based homelab setup for AI/LLM experimentation, self-hosted services, and development/testing. Features Ollama with Open-WebUI, n8n workflow automation, Coolify PaaS, and MCP content automation services.
 
-## Services
+**✅ Cross-Platform Compatible** - Works on Windows now, Linux (TrueNAS Scale) later!
 
-### Ollama
-- **Container**: `ollama/ollama:latest`
-- **Port**: 11434 (internal API)
-- **GPU**: NVIDIA GPU support enabled
-- **Purpose**: Local LLM inference engine
+## 🚀 Quick Start
 
-### Open-WebUI
-- **Container**: `ghcr.io/open-webui/open-webui:v0.6.1`
-- **Local Port**: 5000
-- **Container Port**: 8080
-- **Purpose**: Web interface for interacting with Ollama models
-- **Local Access**: `http://localhost:5000`
-- **Public Access**: `https://your-domain.com` (configured via Cloudflare tunnel)
-
-### N8N
-- **Container**: `n8nio/n8n:latest`
-- **Local Port**: 5678
-- **Container Port**: 5678
-- **Purpose**: Workflow automation platform
-- **Local Access**: `http://localhost:5678`
-- **Public Access**: `https://your-domain.com` (configured via Cloudflare tunnel)
-- **Authentication**: Basic auth with username/password
-
-### Cloudflare Tunnel
-- **Container**: `cloudflare/cloudflared:latest`
-- **Tunnel Name**: Ollama
-- **Purpose**: Secure remote access to local services
-- **Public Domain**: Configured in your Cloudflare dashboard
-
-## Prerequisites
-
-- Docker and Docker Compose
-- NVIDIA GPU with proper drivers (for GPU acceleration)
-- Cloudflare account with tunnel configured
-- Valid `CLOUDFLARED_TUNNEL_TOKEN` in `.env` file
-
-## Quick Start
-
-1. **Clone the repository**:
+1. **Clone and setup**:
    ```bash
    git clone <your-repo-url>
    cd homelab
+   cp mcp.env.example mcp.env
+   # Edit mcp.env with your API credentials
    ```
 
-2. **Set up environment variables**:
+2. **Initial setup** (one-time):
    ```bash
-   # Copy the .env file and add your Cloudflare tunnel token
-   cp .env.example .env
-   # Edit .env and add your CLOUDFLARED_TUNNEL_TOKEN
-   # Also set N8N_USERNAME and N8N_PASSWORD for n8n authentication
+   # Windows
+   scripts\setup-homelab.bat
+
+   # Optional: Auto-start with Windows
+   scripts\setup-windows-startup-manual.bat
+
+   # Linux
+   chmod +x scripts/*.sh
+   ./scripts/setup-homelab.sh
    ```
 
-3. **Start the services**:
+3. **Start services**:
    ```bash
-   # On Windows
-   .\start.ps1
+   # Windows
+   scripts\start-homelab.bat
 
-   # On Linux/Mac
-   docker-compose up -d
+   # Linux
+   ./scripts/start-homelab.sh
    ```
 
-4. **Access the services**:
-   - **Local**:
-     - Open-WebUI: `http://localhost:5000`
-     - N8N: `http://localhost:5678`
-   - **Remote**: Open your configured Cloudflare tunnel domains in your browser
+4. **Access services**:
+   - **Ollama**: `http://localhost:11434`
+   - **Open-WebUI**: `http://localhost:5000`
+   - **n8n**: `http://localhost:5678`
+   - **Coolify**: `http://localhost:6000`
+   - **MCP Dashboard**: `http://localhost:3304`
 
-## Configuration
+## 📚 Documentation
 
-### Ports
-- Open-WebUI: `5000:8080` (host:container)
-- N8N: `5678:5678` (host:container)
-- Ollama API: `11434:11434` (host:container)
+**Comprehensive documentation is available in the `docs/` folder:**
 
-### Volumes
-- `ollama`: Persistent storage for downloaded models
-- `open-webui`: Persistent storage for user data and settings
-- `n8n`: Persistent storage for workflows and credentials
+- **[00-PROJECT-OVERVIEW.md](docs/00-PROJECT-OVERVIEW.md)** - Project goals, vision, and architecture
+- **[01-ARCHITECTURE.md](docs/01-ARCHITECTURE.md)** - Detailed system architecture
+- **[02-SERVICES-REFERENCE.md](docs/02-SERVICES-REFERENCE.md)** - Complete service reference
+- **[03-INSTALLATION-SETUP.md](docs/03-INSTALLATION-SETUP.md)** - Step-by-step setup guide
+- **[04-DAILY-OPERATIONS.md](docs/04-DAILY-OPERATIONS.md)** - Common operational tasks
+- **[05-MAINTENANCE.md](docs/05-MAINTENANCE.md)** - Update and maintenance procedures
+- **[06-TROUBLESHOOTING.md](docs/06-TROUBLESHOOTING.md)** - Common issues and solutions
+- **[07-MCP-SERVICES.md](docs/07-MCP-SERVICES.md)** - MCP content automation services
+- **[08-DEVELOPMENT-TESTING.md](docs/08-DEVELOPMENT-TESTING.md)** - Development workflows
+- **[09-SECURITY.md](docs/09-SECURITY.md)** - Security best practices
+- **[10-REFERENCE.md](docs/10-REFERENCE.md)** - Quick reference guide
+- **[CROSS-PLATFORM-SETUP.md](CROSS-PLATFORM-SETUP.md)** - Cross-platform migration guide
+- **[MIGRATION-COMPLETE.md](MIGRATION-COMPLETE.md)** - PowerShell to cross-platform migration summary
 
-### Networks
-- `intranet`: Internal Docker network for service communication
+## 🏗️ Architecture
 
-## Cloudflare Tunnel Setup
+### Main Stack
+- **Ollama**: LLM inference engine with GPU acceleration
+- **Open-WebUI**: Web interface for LLM interaction
+- **n8n**: Workflow automation platform
+- **Coolify**: Self-hosted PaaS for application deployment
+- **Supporting Services**: PostgreSQL, Redis, Cloudflared
 
-1. **Create a tunnel in Cloudflare dashboard**:
-   - Go to Zero Trust → Access → Tunnels
-   - Create a new tunnel
-   - Configure the tunnel to route traffic to `localhost:5000`
+### MCP Stack (Optional)
+- **TikTok MCP**: TikTok content management
+- **YouTube MCP**: YouTube data and video management
+- **Twitter MCP**: Twitter/X posting and analytics
+- **n8n MCP**: Integration with main n8n instance
+- **Dashboard**: Status monitoring for MCP services
 
-2. **Get your tunnel token**:
-   - Copy the tunnel token from the Cloudflare dashboard
-   - Add it to your `.env` file as `CLOUDFLARED_TUNNEL_TOKEN`
+## 🔧 Key Features
 
-3. **Configure your domain**:
-   - Set up DNS records in Cloudflare to point your domain to the tunnel
-   - The tunnel will provide secure access to your local Open-WebUI instance
+- **AI/LLM Platform**: Local LLM inference with Ollama and Open-WebUI
+- **Workflow Automation**: n8n for complex automation workflows
+- **Self-Hosted PaaS**: Coolify for application deployment
+- **Content Automation**: MCP services for social media management
+- **Secure Remote Access**: Cloudflare tunnel for external access
+- **Automated Updates**: Ansible-based automation for container and model updates
+- **Cross-Platform**: Works on Windows now, Linux (TrueNAS Scale) later
+- **No PowerShell Issues**: Eliminated all PowerShell syntax errors with cross-platform scripts
 
-## Usage
+## 📋 Prerequisites
 
-1. **First Time Setup**:
-   - Access Open-WebUI at `http://localhost:5000`
-   - Download your preferred models through the web interface
-   - Configure any additional settings
+- Docker Desktop with WSL2 backend
+- NVIDIA GPU with CUDA support (for GPU acceleration)
+- Cloudflare account (for remote access)
+- API keys for MCP services (optional)
 
-2. **Remote Access**:
-   - Use your configured Cloudflare tunnel domain to access from anywhere
-   - The Cloudflare tunnel provides secure, encrypted access
+## 🚀 Quick Commands
 
-3. **Model Management**:
-   - Models are stored persistently in the `ollama` volume
-   - Use the Open-WebUI interface to download and manage models
+### Windows
+```cmd
+# Setup (one-time)
+scripts\setup-homelab.bat
 
-## Troubleshooting
+# Optional: Auto-start with Windows
+scripts\setup-windows-startup-manual.bat
 
-### Check Service Status
+# Daily operations
+scripts\start-homelab.bat
+scripts\stop-homelab.bat
+
+# MCP services
+scripts\start-mcp.bat
+
+# Ansible automation
+scripts\ansible-runner.bat setup
+scripts\ansible-runner.bat health
+scripts\ansible-runner.bat update
+scripts\ansible-runner.bat models
+scripts\ansible-runner.bat backup
+
+# Remove auto-startup (if needed)
+scripts\remove-windows-startup.bat
+```
+
+### Linux (including TrueNAS Scale)
 ```bash
-docker-compose ps
+# Setup (one-time)
+chmod +x scripts/*.sh
+./scripts/setup-homelab.sh
+
+# Daily operations
+./scripts/start-homelab.sh
+./scripts/stop-homelab.sh
+
+# MCP services
+./scripts/start-mcp.sh
+
+# Ansible automation
+./scripts/ansible-runner.sh setup
+./scripts/ansible-runner.sh health
+./scripts/ansible-runner.sh update
+./scripts/ansible-runner.sh models
+./scripts/ansible-runner.sh backup
 ```
 
-### View Logs
-```bash
-# All services
-docker-compose logs
+## 🔒 Security
 
-# Specific service
-docker-compose logs open-webui
-docker-compose logs n8n
-docker-compose logs ollama
-docker-compose logs cloudflared
-```
+- Network isolation with Docker networks
+- API key management with environment variables
+- Secure remote access via Cloudflare tunnel
+- Regular security updates and monitoring
 
-### Restart Services
-```bash
-docker-compose restart
-```
+## 📊 Monitoring & Automation
 
-### Check Cloudflare Tunnel
-```bash
-docker logs cloudflared
-```
+- **Automated health checks** via Ansible playbooks
+- **Service status monitoring** with cross-platform scripts
+- **Automated updates** for containers and Ollama models
+- **Resource usage tracking** and log aggregation
+- **Cross-platform compatibility** for Windows and Linux
 
-## Security Notes
+## 🔄 Migration from PowerShell
 
-- The Cloudflare tunnel provides secure remote access
-- Services are isolated in the `intranet` Docker network
-- GPU access is restricted to the Ollama service
-- Persistent data is stored in Docker volumes
+This homelab has been **completely migrated from PowerShell to cross-platform automation**:
 
-## File Structure
+- ✅ **No more PowerShell syntax errors** - All `.ps1` files replaced with cross-platform alternatives
+- ✅ **Cross-platform scripts** - Works on Windows (`.bat`) and Linux (`.sh`)
+- ✅ **Ansible automation** - More powerful than PowerShell for complex automation
+- ✅ **TrueNAS Scale ready** - Easy migration path to Linux
 
-```
-homelab/
-├── docker-compose.yml    # Service definitions
-├── .env                  # Environment variables
-├── start.ps1             # Windows startup script
-└── README.md             # This file
-```
+See [MIGRATION-COMPLETE.md](MIGRATION-COMPLETE.md) for full details.
 
-## Support
+## 🤝 Contributing
 
-For issues related to:
-- **Ollama**: Check the [Ollama documentation](https://ollama.ai/docs)
-- **Open-WebUI**: Check the [Open-WebUI repository](https://github.com/open-webui/open-webui)
-- **N8N**: Check the [N8N documentation](https://docs.n8n.io/)
-- **Cloudflare Tunnel**: Check the [Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) 
+This homelab is designed for personal use but contributions are welcome! Please see the documentation for detailed setup and maintenance procedures.
+
+## 📞 Support
+
+For issues and questions:
+1. Check the [Troubleshooting Guide](docs/06-TROUBLESHOOTING.md)
+2. Review the [Quick Reference](docs/10-REFERENCE.md)
+3. Check the [Cross-Platform Setup Guide](CROSS-PLATFORM-SETUP.md)
+4. Check service-specific documentation in the `docs/` folder

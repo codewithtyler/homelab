@@ -1,0 +1,102 @@
+---
+# Health check and monitoring
+- name: Homelab Health Check
+  hosts: homelab
+  gather_facts: yes
+  become: yes
+
+  tasks:
+    - name: Check Docker daemon health
+      command: docker info
+      register: docker_health
+      failed_when: false
+
+    - name: Check main services health
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: 200
+        timeout: 10
+      loop:
+        - { name: "Ollama", url: "http://localhost:{{ ollama_port }}/api/tags" }
+        - { name: "Open WebUI", url: "http://localhost:{{ open_webui_port }}/" }
+        - { name: "n8n", url: "http://localhost:{{ n8n_port }}/" }
+        - { name: "Coolify", url: "http://localhost:{{ coolify_port }}/" }
+      register: main_services_health
+      failed_when: false
+
+    - name: Check MCP services health
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: 200
+        timeout: 10
+      loop:
+        - { name: "TikTok MCP", url: "http://localhost:{{ tiktok_mcp_port }}/health" }
+        - { name: "YouTube MCP", url: "http://localhost:{{ youtube_mcp_port }}/health" }
+        - { name: "Twitter MCP", url: "http://localhost:{{ twitter_mcp_port }}/health" }
+        - { name: "n8n MCP", url: "http://localhost:{{ n8n_mcp_port }}/health" }
+        - { name: "MCP Dashboard", url: "http://localhost:{{ mcp_dashboard_port }}/" }
+      register: mcp_services_health
+      failed_when: false
+
+    - name: Get container resource usage
+      command: docker stats --no-stream --format "{{.Container}},{{.CPUPerc}},{{.MemUsage}}"
+      register: container_stats
+      changed_when: false
+
+    - name: Check disk usage
+      command: df -h
+      register: disk_usage
+      changed_when: false
+
+    - name: Generate health report
+      copy:
+        content: |
+          === Homelab Health Report ===
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+          === Docker Status ===
+          {% if docker_health.rc == 0 %}
+          ✓ Docker is running
+          {% else %}
+          ✗ Docker is not running
+          {% endif %}
+
+          === Main Services ===
+          {% for service in main_services_health.results %}
+          {{ service.item.name }}: {% if service.status == 200 %}✓ Healthy{% else %}✗ Unhealthy{% endif %}
+          {% endfor %}
+
+          === MCP Services ===
+          {% for service in mcp_services_health.results %}
+          {{ service.item.name }}: {% if service.status == 200 %}✓ Healthy{% else %}✗ Unhealthy{% endif %}
+          {% endfor %}
+
+          === Resource Usage ===
+          {% for stat in container_stats.stdout_lines %}
+          {{ stat }}
+          {% endfor %}
+
+          === Disk Usage ===
+          {% for line in disk_usage.stdout_lines %}
+          {{ line }}
+          {% endfor %}
+        dest: "{{ logs_dir }}/health-report-{{ ansible_date_time.date }}.txt"
+
+    - name: Display health summary
+      debug:
+        msg: |
+          === Health Summary ===
+          Docker: {{ 'Healthy' if docker_health.rc == 0 else 'Unhealthy' }}
+          Main Services: {{ main_services_health.results | selectattr('status', 'equalto', 200) | list | length }}/{{ main_services_health.results | length }} healthy
+          MCP Services: {{ mcp_services_health.results | selectattr('status', 'equalto', 200) | list | length }}/{{ mcp_services_health.results | length }} healthy
+
+    - name: Restart unhealthy services
+      docker_compose:
+        project_src: "{{ homelab_dir }}"
+        files:
+          - "{{ docker_compose_file }}"
+        state: present
+        recreate: always
+      when: main_services_health.results | selectattr('status', 'notequalto', 200) | list | length > 0
