@@ -117,6 +117,18 @@ services:
       coolify-db:
         condition: service_healthy
 
+  remotion:
+    image: nginx:alpine
+    container_name: remotion
+    ports:
+      - "4000:80"  # Host port 4000 maps to container port 80
+    volumes:
+      - ./data/remotion:/usr/share/nginx/html
+      - ./data/remotion/output:/usr/share/nginx/html/output
+    networks:
+      - intranet
+    restart: unless-stopped
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
