@@ -91,9 +91,10 @@ services:
 
   coolify:
     image: coollabsio/coolify:latest
+    privileged: true
     container_name: coolify
     ports:
-      - "6000:8080"  # Host port 6000 maps to container port 8080
+      - "7000:8080"  # Host port 7000 maps to container port 8080
     environment:
       - DB_CONNECTION=pgsql
       - DB_HOST=coolify-db
@@ -105,9 +106,19 @@ services:
       - COOLIFY_HOST=0.0.0.0
       - REDIS_URL=redis://coolify-redis:6379
       - APP_KEY=${APP_KEY}
+      - COOLIFY_URL=http://localhost:7000
+      - APP_URL=http://localhost:7000
+      - COOLIFY_PUBLIC_URL=http://localhost:7000
+      - COOLIFY_FQDN=localhost:7000
+      - COOLIFY_SKIP_SERVER_VALIDATION=true
+      - COOLIFY_LOCAL_DEVELOPMENT=true
+      - COOLIFY_DOCKER_HOST=unix:///var/run/docker.sock
+      - COOLIFY_SKIP_ONBOARDING=true
+      - COOLIFY_SERVICES_ONLY=true
     volumes:
       - ./data/coolify:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /usr/bin/docker:/usr/bin/docker:ro
     networks:
       - intranet
     restart: unless-stopped

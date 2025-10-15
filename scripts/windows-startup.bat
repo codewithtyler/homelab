@@ -18,4 +18,4 @@ REM Start homelab services
 cd /d "D:\dev\homelab"
 call scripts\start-homelab.bat
 
-echo Homelab startup completed at %date% %time% >> "D:\dev\homelab\logs\startup.log"
+echo Homelab startup completed at %date% %time%>> "D:\dev\homelab\logs\activity.log"

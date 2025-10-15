@@ -32,7 +32,7 @@ echo REM Start homelab services
 echo cd /d "%HOMELAB_DIR%"
 echo call scripts\start-homelab.bat
 echo.
-echo echo Homelab startup completed at %date% %time% ^>^> "%HOMELAB_DIR%\logs\startup.log"
+echo echo Homelab startup completed at %date% %time%^>^> "%HOMELAB_DIR%\logs\activity.log"
 ) > "%STARTUP_SCRIPT%"
 
 echo Created startup script: %STARTUP_SCRIPT%
@@ -66,4 +66,4 @@ if %errorlevel% equ 0 (
 
 echo.
 echo Setup complete! Your homelab will start automatically with Windows.
-echo Check logs\startup.log for startup information.
+echo Check logs\activity.log for activity information.
