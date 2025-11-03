@@ -68,6 +68,7 @@ A comprehensive Docker-based homelab setup for AI/LLM experimentation, self-host
 - **Open-WebUI**: Web interface for LLM interaction
 - **n8n**: Workflow automation platform
 - **Coolify**: Self-hosted PaaS for application deployment
+- **Stable Diffusion**: AI image generation with Automatic1111 WebUI
 - **Supporting Services**: PostgreSQL, Redis, Cloudflared
 
 ### MCP Stack (Optional)

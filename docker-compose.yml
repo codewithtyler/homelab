@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.6.33
+    image: ghcr.io/open-webui/open-webui:v0.6.34
     container_name: open-webui
     ports:
       - "5000:8080" # Maps container's port 8080 to host's port 5000
@@ -146,6 +146,31 @@ services:
     command: tunnel run Ollama
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARED_TUNNEL_TOKEN}
+    networks:
+      - intranet
+    restart: unless-stopped
+
+  stable-diffusion:
+    image: goolashe/automatic1111-sd-webui:latest
+    container_name: stable-diffusion
+    ports:
+      - "7860:7860"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - COMMANDLINE_ARGS=--api --listen --port 7860 --medvram --opt-sdp-attention --no-half-vae --enable-insecure-extension-access
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: ["gpu"]
+    volumes:
+      - ./data/stable-diffusion/models:/data/models
+      - ./data/stable-diffusion/outputs:/data/outputs
+      - ./data/stable-diffusion/loras:/data/loras
+      - ./data/stable-diffusion/extensions:/data/extensions
+      - ./data/stable-diffusion/embeddings:/data/embeddings
     networks:
       - intranet
     restart: unless-stopped

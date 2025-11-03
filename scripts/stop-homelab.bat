@@ -12,4 +12,10 @@ REM Stop MCP services
 echo Stopping MCP services...
 docker-compose -f docker-compose-mcp.yml down
 
+REM Stop Stable Diffusion (local installation)
+echo Stopping Stable Diffusion...
+taskkill /F /FI "WINDOWTITLE eq launch.py*" >nul 2>&1
+taskkill /F /IM python.exe /FI "COMMANDLINE eq *launch.py*" >nul 2>&1
+echo ✓ Stable Diffusion stopped...
+
 echo ✓ Homelab services stopped!

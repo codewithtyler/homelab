@@ -21,10 +21,20 @@ REM Start MCP services (if API keys are available)
 echo Starting MCP services...
 call scripts\start-mcp.bat
 
+REM Start Stable Diffusion (local installation)
+echo Starting Stable Diffusion...
+if exist "C:\stable-diffusion-webui\venv\Scripts\python.exe" (
+    start "" "C:\stable-diffusion-webui\venv\Scripts\python.exe" "C:\stable-diffusion-webui\launch.py" --api --medvram --opt-sdp-attention --no-half-vae --listen --port 7860
+    echo ✓ Stable Diffusion starting...
+) else (
+    echo ⚠ Stable Diffusion not found at C:\stable-diffusion-webui
+)
+
 echo ✓ Homelab services started!
 echo.
 echo Services available at:
 echo   - Ollama: http://localhost:11434
 echo   - Open WebUI: http://localhost:5000
 echo   - n8n: http://localhost:5678
-echo   - Coolify: http://localhost:6000
+echo   - Coolify: http://localhost:7000
+echo   - Stable Diffusion: http://localhost:7860

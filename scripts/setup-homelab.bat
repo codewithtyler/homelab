@@ -29,6 +29,12 @@ if not exist "data\mcp-servers\youtube" mkdir data\mcp-servers\youtube
 if not exist "data\mcp-servers\twitter" mkdir data\mcp-servers\twitter
 if not exist "data\mcp-servers\n8n-mcp" mkdir data\mcp-servers\n8n-mcp
 if not exist "data\mcp-servers\dashboard" mkdir data\mcp-servers\dashboard
+if not exist "data\stable-diffusion\models" mkdir data\stable-diffusion\models
+if not exist "data\stable-diffusion\outputs" mkdir data\stable-diffusion\outputs
+if not exist "data\stable-diffusion\loras" mkdir data\stable-diffusion\loras
+if not exist "data\stable-diffusion\extensions" mkdir data\stable-diffusion\extensions
+if not exist "data\stable-diffusion\embeddings" mkdir data\stable-diffusion\embeddings
+if not exist "data\stable-diffusion\controlnet" mkdir data\stable-diffusion\controlnet
 
 echo ✓ Directory structure created
 
@@ -51,6 +57,7 @@ docker pull cloudflare/cloudflared:latest
 docker pull node:18-alpine
 docker pull nginx:alpine
 docker pull ghcr.io/czlonkowski/n8n-mcp:latest
+REM Stable Diffusion will be built from Dockerfile.stable-diffusion
 
 echo ✓ Docker images pulled
 

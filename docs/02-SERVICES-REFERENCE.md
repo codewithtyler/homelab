@@ -348,3 +348,74 @@
 **Health Check**:
 - Web interface: `http://localhost:3304`
 - Expected: Dashboard with service status
+
+---
+
+## Stable Diffusion Services
+
+### Stable Diffusion (Automatic1111)
+**Purpose**: AI image generation with Automatic1111 WebUI
+
+**Container Details**:
+- **Image**: `ghcr.io/automatic1111/stable-diffusion-webui:latest`
+- **Container Name**: `stable-diffusion`
+- **Port**: `7860:7860`
+- **GPU**: NVIDIA GPU access enabled (RTX 3080 10GB optimized)
+
+**Configuration**:
+- **Volume**: `./data/stable-diffusion/models:/app/models`
+- **Volume**: `./data/stable-diffusion/outputs:/app/outputs`
+- **Volume**: `./data/stable-diffusion/loras:/app/loras`
+- **Volume**: `./data/stable-diffusion/extensions:/app/extensions`
+- **Volume**: `./data/stable-diffusion/embeddings:/app/embeddings`
+- **Volume**: `./data/stable-diffusion/controlnet:/app/extensions/sd-webui-controlnet/models`
+- **Network**: `intranet`
+- **Restart Policy**: `unless-stopped`
+
+**Environment Variables**:
+- `NVIDIA_VISIBLE_DEVICES=all`
+- `COMMANDLINE_ARGS=--api --listen --medvram --xformers --no-half-vae`
+
+**Dependencies**:
+- None (standalone service)
+
+**Health Check**:
+- Web interface: `http://localhost:7860`
+- API documentation: `http://localhost:7860/docs`
+- Expected: Automatic1111 WebUI loads successfully
+
+**Performance (RTX 3080 10GB)**:
+- **SDXL (1024x1024)**: 5-8 seconds per image
+- **SD 1.5 (512x512)**: 2-3 seconds per image
+- **Batch processing**: 4-8 images simultaneously
+- **VRAM usage**: 6-8GB (SDXL), 4-5GB (SD 1.5)
+
+**Models Included**:
+- **Realistic Vision v5.1 SDXL**: 7GB base model
+- **ControlNet OpenPose**: 1.4GB for pose control
+- **ControlNet Canny**: 1.4GB for edge detection
+- **ControlNet Depth**: 1.4GB for depth control
+
+**API Integration**:
+- **Text-to-Image**: `POST /sdapi/v1/txt2img`
+- **Image-to-Image**: `POST /sdapi/v1/img2img`
+- **ControlNet**: `POST /sdapi/v1/controlnet/detect`
+- **Model Management**: `GET /sdapi/v1/sd-models`
+
+**n8n Integration**:
+```javascript
+// Example n8n workflow for image generation
+const response = await fetch('http://stable-diffusion:7860/sdapi/v1/txt2img', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    prompt: "beautiful landscape, photorealistic",
+    negative_prompt: "blurry, low quality",
+    width: 1024,
+    height: 1024,
+    steps: 20,
+    cfg_scale: 7.5,
+    sampler_name: "DPM++ 2M Karras"
+  })
+});
+```
