@@ -7,68 +7,150 @@
 
   vars:
     github_api_base: "https://api.github.com/repos"
+    dockerhub_api_base: "https://hub.docker.com/v2/repositories"
     services:
       - name: "open-webui"
         github_repo: "open-webui/open-webui"
         docker_image: "ghcr.io/open-webui/open-webui"
         compose_service: "open-webui"
+        version_source: "github_releases"
       - name: "n8n"
-        github_repo: "n8nio/n8n"
         docker_image: "n8nio/n8n"
         compose_service: "n8n"
+        version_source: "dockerhub"
       - name: "ollama"
         github_repo: "ollama/ollama"
         docker_image: "ollama/ollama"
         compose_service: "ollama"
+        version_source: "github_releases"
       - name: "coolify"
         github_repo: "coollabsio/coolify"
         docker_image: "coollabsio/coolify"
         compose_service: "coolify"
+        version_source: "github_releases"
 
   tasks:
+    - name: Check if running in container (workspace exists)
+      stat:
+        path: /workspace/docker-compose.yml
+      register: workspace_compose
+    
+    - name: Determine docker-compose file path
+      set_fact:
+        compose_file_path: "{{ '/workspace/docker-compose.yml' if workspace_compose.stat.exists else docker_compose_file }}"
+    
     - name: Read current docker-compose.yml
       slurp:
-        src: "{{ docker_compose_file }}"
+        src: "{{ compose_file_path }}"
       register: compose_content
 
     - name: Parse docker-compose.yml content
       set_fact:
         compose_yaml: "{{ compose_content.content | b64decode | from_yaml }}"
 
-    - name: Check for updates for each service
+    - name: Check for updates via GitHub releases
       uri:
         url: "{{ github_api_base }}/{{ item.github_repo }}/releases/latest"
         method: GET
         headers:
           User-Agent: "Homelab-Update-System"
         return_content: yes
+        status_code: [200, 404]
       register: github_response
       loop: "{{ services }}"
+      when: item.version_source == "github_releases"
+      failed_when: false
 
-    - name: Parse current and latest versions
+    - name: Get latest tag from Docker Hub
+      uri:
+        url: "{{ dockerhub_api_base }}/{{ item.docker_image }}/tags/latest"
+        method: GET
+        headers:
+          User-Agent: "Homelab-Update-System"
+        return_content: yes
+        status_code: [200, 404]
+      register: dockerhub_latest_response
+      loop: "{{ services }}"
+      when: item.version_source == "dockerhub"
+      failed_when: false
+
+    - name: Get tags ordered by name (fallback for services without latest tag)
+      uri:
+        url: "{{ dockerhub_api_base }}/{{ item.docker_image }}/tags?page_size=1&ordering=-name"
+        method: GET
+        headers:
+          User-Agent: "Homelab-Update-System"
+        return_content: yes
+        status_code: [200, 404]
+      register: dockerhub_tags_response
+      loop: "{{ services }}"
+      when: 
+        - item.version_source == "dockerhub"
+        - dockerhub_latest_response.results | default([]) | selectattr('item.name', 'equalto', item.name) | selectattr('status', 'equalto', 404) | list | length > 0
+      failed_when: false
+
+    - name: Parse GitHub releases versions
       set_fact:
-        service_updates: "{{ service_updates | default([]) + [item] }}"
+        service_updates: "{{ service_updates | default([]) + [service_update] }}"
       vars:
-        item:
+        service_update:
           name: "{{ item.item.name }}"
-          github_repo: "{{ item.item.github_repo }}"
           docker_image: "{{ item.item.docker_image }}"
           compose_service: "{{ item.item.compose_service }}"
           current_version: "{{ compose_yaml.services[item.item.compose_service].image.split(':')[-1] }}"
-          latest_version: "{{ item.json.tag_name }}"
-          has_update: "{{ compose_yaml.services[item.item.compose_service].image.split(':')[-1] != item.json.tag_name }}"
-      loop: "{{ github_response.results }}"
+          latest_version: "{{ item.json.tag_name if item.status == 200 else 'unknown' }}"
+          has_update: "{{ (item.status == 200) and (compose_yaml.services[item.item.compose_service].image.split(':')[-1] != item.json.tag_name) }}"
+          api_error: "{{ item.status == 404 }}"
+      loop: "{{ github_response.results | default([]) }}"
+      when: item.status is defined
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Parse Docker Hub latest tag versions
+      set_fact:
+        service_updates: "{{ service_updates | default([]) + [service_update] }}"
+      vars:
+        service_update:
+          name: "{{ item.item.name }}"
+          docker_image: "{{ item.item.docker_image }}"
+          compose_service: "{{ item.item.compose_service }}"
+          current_version: "{{ compose_yaml.services[item.item.compose_service].image.split(':')[-1] }}"
+          latest_version: "{{ 'latest' if item.status == 200 else 'unknown' }}"
+          has_update: "{{ (item.status == 200) and (compose_yaml.services[item.item.compose_service].image.split(':')[-1] != 'latest') }}"
+          api_error: "{{ item.status == 404 }}"
+      loop: "{{ dockerhub_latest_response.results | default([]) }}"
+      when: item.status is defined
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Parse Docker Hub tag versions (fallback)
+      set_fact:
+        service_updates: "{{ service_updates | default([]) + [service_update] }}"
+      vars:
+        service_update:
+          name: "{{ item.item.name }}"
+          docker_image: "{{ item.item.docker_image }}"
+          compose_service: "{{ item.item.compose_service }}"
+          current_version: "{{ compose_yaml.services[item.item.compose_service].image.split(':')[-1] }}"
+          latest_version: "{{ item.json.results[0].name if (item.status == 200 and item.json.results | length > 0) else 'unknown' }}"
+          has_update: "{{ (item.status == 200 and item.json.results | length > 0) and (compose_yaml.services[item.item.compose_service].image.split(':')[-1] != item.json.results[0].name) }}"
+          api_error: "{{ item.status == 404 }}"
+      loop: "{{ dockerhub_tags_response.results | default([]) }}"
+      when: item.status is defined
+      loop_control:
+        label: "{{ item.item.name }}"
 
     - name: Display update status
       debug:
         msg: |
           {{ item.name }}: {{ item.current_version }} -> {{ item.latest_version }}
           Update available: {{ item.has_update }}
+          {% if item.api_error %}API Error: GitHub releases not available{% endif %}
       loop: "{{ service_updates }}"
 
     - name: Update docker-compose.yml for services with updates
       replace:
-        path: "{{ docker_compose_file }}"
+        path: "{{ compose_file_path }}"
         regexp: 'image: {{ item.docker_image }}:{{ item.current_version }}'
         replace: 'image: {{ item.docker_image }}:{{ item.latest_version }}'
       loop: "{{ service_updates }}"
@@ -81,7 +163,7 @@
       register: pull_results
 
     - name: Update and restart only updated services
-      command: "docker-compose up -d {{ item.compose_service }}"
+      command: "docker-compose -f {{ compose_file_path }} up -d {{ item.compose_service }}"
       loop: "{{ service_updates }}"
       when: item.has_update
       register: restart_results
@@ -112,8 +194,5 @@
       changed_when: false
       failed_when: false
 
-    - name: Log update results to activity.log
-      lineinfile:
-        path: "{{ logs_dir }}/activity.log"
-        line: "Update process completed at {{ timestamp_result.stdout | default(ansible_date_time.date + ' ' + ansible_date_time.hour + ':' + ansible_date_time.minute) }} - {% if service_updates | selectattr('has_update') | list | length > 0 %}Updated containers: {{ service_updates | selectattr('has_update') | map(attribute='name') | join(', ') }}{% else %}No updates available{% endif %}"
-        create: yes
+    # Note: Update results are logged by run-update.sh script
+    # This playbook output goes to ansible-debug.log for troubleshooting

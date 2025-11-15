@@ -1,0 +1,41 @@
+# Traefik Static Configuration
+# This file contains the static configuration for Traefik
+
+api:
+  dashboard: true
+  insecure: true  # Dashboard accessible on port 8080 without auth (restrict in production)
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: intranet
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+certificatesResolvers:
+  cloudflare:
+    acme:
+      dnsChallenge:
+        provider: cloudflare
+      # Note: email, storage, and caServer are set via command line flags in docker-compose
+      # This file is for reference - command line flags take precedence
+
+log:
+  level: INFO
+
+accessLog: {}
+

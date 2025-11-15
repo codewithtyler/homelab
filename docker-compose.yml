@@ -1,50 +1,50 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
+  # Linux services (Traefik, n8n, Coolify stack)
+  traefik:
+    profiles: ["linux"]
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.cloudflare.acme.dnschallenge=true
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.cloudflare.acme.storage=/data/acme.json
+      - --certificatesresolvers.cloudflare.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
     ports:
-      - "11434:11434"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [ "gpu" ]
-    volumes:
-      - ./data/ollama:/root/.ollama # Host bind mount for persistence
-    networks:
-      - intranet
-    restart: unless-stopped
-
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.6.34
-    container_name: open-webui
-    ports:
-      - "5000:8080" # Maps container's port 8080 to host's port 5000
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
     environment:
-      - HOST=0.0.0.0
-      - PORT=8080
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    volumes:
+      - ./traefik/data:/data
+      - ./traefik/dynamic:/etc/traefik/dynamic
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - intranet
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./data/open-webui:/app/backend/data # Host bind mount for persistence
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [ "gpu" ]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_SUBDOMAIN}.${DOMAIN_PRIMARY}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik.service=api@internal"
 
   n8n:
+    profiles: ["linux"]
     image: n8nio/n8n:latest
     container_name: n8n
     ports:
-      - "5678:5678" # Maps container's port 5678 to host's port 5678
+      - "5678:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_USERNAME}
@@ -56,12 +56,22 @@ services:
       - GENERIC_TIMEZONE=UTC
       - N8N_TRUST_PROXY=true
     volumes:
-      - ./data/n8n:/home/node/.n8n # Host bind mount for persistence
+      - ./data/n8n:/home/node/.n8n
     networks:
       - intranet
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n-eaglesight.rule=Host(`${N8N_SUBDOMAIN}.${DOMAIN_PRIMARY}`)"
+      - "traefik.http.routers.n8n-eaglesight.entrypoints=websecure"
+      - "traefik.http.routers.n8n-eaglesight.tls.certresolver=cloudflare"
+      - "traefik.http.routers.n8n-codewithtyler.rule=Host(`${N8N_SUBDOMAIN}.${DOMAIN_SECONDARY}`)"
+      - "traefik.http.routers.n8n-codewithtyler.entrypoints=websecure"
+      - "traefik.http.routers.n8n-codewithtyler.tls.certresolver=cloudflare"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
 
   coolify-redis:
+    profiles: ["linux"]
     image: redis:7-alpine
     container_name: coolify-redis
     command: redis-server --appendonly yes
@@ -72,6 +82,7 @@ services:
     restart: unless-stopped
 
   coolify-db:
+    profiles: ["linux"]
     image: postgres:15-alpine
     container_name: coolify-db
     environment:
@@ -90,11 +101,12 @@ services:
       retries: 5
 
   coolify:
-    image: coollabsio/coolify:latest
+    profiles: ["linux"]
+    image: coollabsio/coolify:v4.0.0-beta.444
     privileged: true
     container_name: coolify
     ports:
-      - "7000:8080"  # Host port 7000 maps to container port 8080
+      - "7000:8080"
     environment:
       - DB_CONNECTION=pgsql
       - DB_HOST=coolify-db
@@ -102,7 +114,7 @@ services:
       - DB_DATABASE=${COOLIFY_DB_NAME}
       - DB_USERNAME=${COOLIFY_DB_USER}
       - DB_PASSWORD=${COOLIFY_DB_PASSWORD}
-      - COOLIFY_PORT=8080  # Keep Coolify on its default port inside container
+      - COOLIFY_PORT=8080
       - COOLIFY_HOST=0.0.0.0
       - REDIS_URL=redis://coolify-redis:6379
       - APP_KEY=${APP_KEY}
@@ -127,30 +139,59 @@ services:
         condition: service_started
       coolify-db:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.coolify.rule=Host(`${COOLIFY_SUBDOMAIN}.${DOMAIN_PRIMARY}`)"
+      - "traefik.http.routers.coolify.entrypoints=websecure"
+      - "traefik.http.routers.coolify.tls.certresolver=cloudflare"
+      - "traefik.http.services.coolify.loadbalancer.server.port=8080"
 
-  remotion:
-    image: nginx:alpine
-    container_name: remotion
+  # Windows services (GPU services)
+  ollama:
+    profiles: ["windows"]
+    image: ollama/ollama:v0.12.11
+    container_name: ollama
     ports:
-      - "4000:80"  # Host port 4000 maps to container port 80
+      - "11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ "gpu" ]
     volumes:
-      - ./data/remotion:/usr/share/nginx/html
-      - ./data/remotion/output:/usr/share/nginx/html/output
+      - ./data/ollama:/root/.ollama
     networks:
       - intranet
     restart: unless-stopped
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-    command: tunnel run Ollama
+  open-webui:
+    profiles: ["windows"]
+    image: ghcr.io/open-webui/open-webui:v0.6.36
+    container_name: open-webui
+    ports:
+      - "5000:8080"
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARED_TUNNEL_TOKEN}
+      - HOST=0.0.0.0
+      - PORT=8080
     networks:
       - intranet
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data/open-webui:/app/backend/data
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ "gpu" ]
 
   stable-diffusion:
+    profiles: ["windows"]
     image: goolashe/automatic1111-sd-webui:latest
     container_name: stable-diffusion
     ports:
@@ -171,6 +212,19 @@ services:
       - ./data/stable-diffusion/loras:/data/loras
       - ./data/stable-diffusion/extensions:/data/extensions
       - ./data/stable-diffusion/embeddings:/data/embeddings
+    networks:
+      - intranet
+    restart: unless-stopped
+
+  remotion:
+    profiles: ["windows"]
+    image: nginx:alpine
+    container_name: remotion
+    ports:
+      - "4000:80"
+    volumes:
+      - ./data/remotion:/usr/share/nginx/html
+      - ./data/remotion/output:/usr/share/nginx/html/output
     networks:
       - intranet
     restart: unless-stopped

@@ -9,13 +9,13 @@ services:
       - ./inventory.ini:/inventory.ini:ro
       - ./ansible.cfg:/ansible.cfg:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - .:/workspace:ro
+      - .:/workspace
     environment:
       - HOMELAB_DIR=/workspace
       - TZ=America/Chicago  # Central Time Zone (Alabama)
     command: >
       sh -c "
-      apk add --no-cache dcron docker-cli tzdata &&
+      apk add --no-cache dcron docker-cli docker-compose tzdata &&
       cp /usr/share/zoneinfo/America/Chicago /etc/localtime &&
       echo 'America/Chicago' > /etc/timezone &&
       echo '0 3 * * * /scripts/run-update.sh' > /etc/crontabs/root &&

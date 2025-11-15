@@ -1,7 +1,15 @@
 ---
-# Deploy main homelab services
-- name: Deploy main services with Docker Compose
-  command: docker-compose up -d
+# Deploy main homelab services with OS-specific profiles
+- name: Detect OS and set Docker Compose profile
+  set_fact:
+    compose_profile: "{{ 'linux' if ansible_os_family == 'Debian' or ansible_os_family == 'RedHat' else 'windows' }}"
+
+- name: Display detected OS and profile
+  debug:
+    msg: "Detected OS: {{ ansible_os_family }}, Using profile: {{ compose_profile }}"
+
+- name: Deploy main services with Docker Compose profile
+  command: docker-compose --profile {{ compose_profile }} up -d
   register: compose_result
   changed_when: compose_result.rc == 0
 

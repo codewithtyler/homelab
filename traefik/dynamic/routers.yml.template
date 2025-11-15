@@ -1,0 +1,76 @@
+# Traefik Dynamic Configuration Template
+# This template uses placeholders that will be replaced by the setup script
+# Placeholders (all values come from .env file):
+#   - WINDOWS_HOST_IP_PLACEHOLDER: Windows machine IP/hostname (from WINDOWS_HOST_IP)
+#   - DOMAIN_PRIMARY_PLACEHOLDER: Primary domain (from DOMAIN_PRIMARY)
+#   - OPEN_WEBUI_SUBDOMAIN_PLACEHOLDER: Open WebUI subdomain (from OPEN_WEBUI_SUBDOMAIN)
+#   - STABLE_DIFFUSION_SUBDOMAIN_PLACEHOLDER: Stable Diffusion subdomain (from STABLE_DIFFUSION_SUBDOMAIN)
+#   - REMOTION_SUBDOMAIN_PLACEHOLDER: Remotion subdomain (from REMOTION_SUBDOMAIN)
+#   - OLLAMA_SUBDOMAIN_PLACEHOLDER: Ollama subdomain (from OLLAMA_SUBDOMAIN)
+#
+# Run: .\scripts\setup-traefik-config.ps1 to generate routers.yml from this template
+# The generated routers.yml file is gitignored and contains actual IPs/domains
+
+http:
+  routers:
+    # Open WebUI (Windows)
+    chat-eaglesightlabs:
+      rule: "Host(`OPEN_WEBUI_SUBDOMAIN_PLACEHOLDER.DOMAIN_PRIMARY_PLACEHOLDER`)"
+      entryPoints:
+        - websecure
+      service: open-webui
+      tls:
+        certResolver: cloudflare
+
+    # Stable Diffusion (Windows)
+    media-eaglesightlabs:
+      rule: "Host(`STABLE_DIFFUSION_SUBDOMAIN_PLACEHOLDER.DOMAIN_PRIMARY_PLACEHOLDER`)"
+      entryPoints:
+        - websecure
+      service: stable-diffusion
+      tls:
+        certResolver: cloudflare
+
+    # Remotion (Windows)
+    studio-eaglesightlabs:
+      rule: "Host(`REMOTION_SUBDOMAIN_PLACEHOLDER.DOMAIN_PRIMARY_PLACEHOLDER`)"
+      entryPoints:
+        - websecure
+      service: remotion
+      tls:
+        certResolver: cloudflare
+
+    # Ollama API (Windows)
+    models-eaglesightlabs:
+      rule: "Host(`OLLAMA_SUBDOMAIN_PLACEHOLDER.DOMAIN_PRIMARY_PLACEHOLDER`)"
+      entryPoints:
+        - websecure
+      service: ollama
+      tls:
+        certResolver: cloudflare
+
+  services:
+    # Open WebUI service (Windows host)
+    open-webui:
+      loadBalancer:
+        servers:
+          - url: "http://WINDOWS_HOST_IP_PLACEHOLDER:5000"
+
+    # Stable Diffusion service (Windows host)
+    stable-diffusion:
+      loadBalancer:
+        servers:
+          - url: "http://WINDOWS_HOST_IP_PLACEHOLDER:7860"
+
+    # Remotion service (Windows host)
+    remotion:
+      loadBalancer:
+        servers:
+          - url: "http://WINDOWS_HOST_IP_PLACEHOLDER:4000"
+
+    # Ollama API service (Windows host)
+    ollama:
+      loadBalancer:
+        servers:
+          - url: "http://WINDOWS_HOST_IP_PLACEHOLDER:11434"
+

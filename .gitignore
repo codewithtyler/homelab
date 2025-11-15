@@ -38,3 +38,7 @@ data/
 
 # Logs
 logs/activity.log
+logs/ansible-debug.log
+
+# Traefik generated config (contains actual domains/IPs)
+traefik/dynamic/routers.yml
