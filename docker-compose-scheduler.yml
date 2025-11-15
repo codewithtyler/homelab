@@ -1,0 +1,34 @@
+services:
+  homelab-scheduler:
+    image: alpine:latest
+    container_name: homelab-scheduler
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./logs:/logs
+      - ./playbooks:/playbooks:ro
+      - ./inventory.ini:/inventory.ini:ro
+      - ./ansible.cfg:/ansible.cfg:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - .:/workspace:ro
+    environment:
+      - HOMELAB_DIR=/workspace
+      - TZ=America/Chicago  # Central Time Zone (Alabama)
+    command: >
+      sh -c "
+      apk add --no-cache dcron docker-cli tzdata &&
+      cp /usr/share/zoneinfo/America/Chicago /etc/localtime &&
+      echo 'America/Chicago' > /etc/timezone &&
+      echo '0 3 * * * /scripts/run-update.sh' > /etc/crontabs/root &&
+      chmod 0600 /etc/crontabs/root &&
+      crond -f -d 8
+      "
+    init: true
+    restart: unless-stopped
+    networks:
+      - intranet
+
+networks:
+  intranet:
+    name: homelab_intranet
+    external: true
+

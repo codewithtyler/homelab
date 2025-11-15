@@ -105,3 +105,15 @@
       debug:
         msg: "Cleaned up old images"
       when: service_updates | selectattr('has_update') | list | length > 0
+
+    - name: Get current timestamp
+      shell: date '+%Y-%m-%d %I:%M %p'
+      register: timestamp_result
+      changed_when: false
+      failed_when: false
+
+    - name: Log update results to activity.log
+      lineinfile:
+        path: "{{ logs_dir }}/activity.log"
+        line: "Update process completed at {{ timestamp_result.stdout | default(ansible_date_time.date + ' ' + ansible_date_time.hour + ':' + ansible_date_time.minute) }} - {% if service_updates | selectattr('has_update') | list | length > 0 %}Updated containers: {{ service_updates | selectattr('has_update') | map(attribute='name') | join(', ') }}{% else %}No updates available{% endif %}"
+        create: yes

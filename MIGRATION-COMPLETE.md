@@ -22,7 +22,6 @@
 ### **Files Created:**
 
 #### **Cross-Platform Scripts:**
-- ✅ `scripts/setup-homelab.bat` + `scripts/setup-homelab.sh` - Environment setup
 - ✅ `scripts/start-homelab.bat` + `scripts/start-homelab.sh` - Start all services
 - ✅ `scripts/stop-homelab.bat` + `scripts/stop-homelab.sh` - Stop all services
 - ✅ `scripts/start-mcp.bat` + `scripts/start-mcp.sh` - Start MCP services
@@ -39,7 +38,7 @@
 - ❌ `automated-updates.ps1` → ✅ `playbooks/update-services.yml`
 - ❌ `docker-health-monitor.ps1` → ✅ `playbooks/health-check.yml`
 - ❌ `pull-ollama-models.ps1` → ✅ `playbooks/ollama-models.yml`
-- ❌ `pull-docker-images.ps1` → ✅ `scripts/setup-homelab.bat`
+- ❌ `pull-docker-images.ps1` → ✅ `playbooks/site.yml` (via `ansible-runner.bat setup`)
 - ❌ `check-docker.ps1` → ✅ `playbooks/health-check.yml`
 - ❌ `update-containers.ps1` → ✅ `playbooks/update-services.yml`
 - ❌ `start.ps1` → ✅ `scripts/start-homelab.bat`
@@ -66,7 +65,7 @@ The system is now running successfully with:
 ### **Windows:**
 ```cmd
 # Setup (one-time)
-scripts\setup-homelab.bat
+scripts\ansible-runner.bat setup
 
 # Daily operations
 scripts\start-homelab.bat

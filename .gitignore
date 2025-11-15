@@ -35,3 +35,6 @@ mcp.env
 
 # Docker
 data/
+
+# Logs
+logs/activity.log

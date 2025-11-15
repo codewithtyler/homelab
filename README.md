@@ -17,14 +17,14 @@ A comprehensive Docker-based homelab setup for AI/LLM experimentation, self-host
 2. **Initial setup** (one-time):
    ```bash
    # Windows
-   scripts\setup-homelab.bat
+   scripts\ansible-runner.bat setup
 
    # Optional: Auto-start with Windows
-   scripts\setup-windows-startup-manual.bat
+   scripts\setup-windows-startup.bat
 
    # Linux
    chmod +x scripts/*.sh
-   ./scripts/setup-homelab.sh
+   ./scripts/ansible-runner.sh setup
    ```
 
 3. **Start services**:
@@ -101,10 +101,10 @@ A comprehensive Docker-based homelab setup for AI/LLM experimentation, self-host
 ### Windows
 ```cmd
 # Setup (one-time)
-scripts\setup-homelab.bat
+scripts\ansible-runner.bat setup
 
 # Optional: Auto-start with Windows
-scripts\setup-windows-startup-manual.bat
+scripts\setup-windows-startup.bat
 
 # Daily operations
 scripts\start-homelab.bat
