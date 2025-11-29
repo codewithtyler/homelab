@@ -1,46 +1,6 @@
 services:
-  # Linux services (Traefik, n8n, Coolify stack)
-  traefik:
-    profiles: ["linux"]
-    image: traefik:v3.0
-    container_name: traefik
-    command:
-      - --api.dashboard=true
-      - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --providers.file.directory=/etc/traefik/dynamic
-      - --providers.file.watch=true
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.cloudflare.acme.dnschallenge=true
-      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
-      - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
-      - --certificatesresolvers.cloudflare.acme.storage=/data/acme.json
-      - --certificatesresolvers.cloudflare.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"  # Traefik dashboard
-    environment:
-      - CF_API_EMAIL=${CF_API_EMAIL}
-      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
-    volumes:
-      - ./traefik/data:/data
-      - ./traefik/dynamic:/etc/traefik/dynamic
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - intranet
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_SUBDOMAIN}.${DOMAIN_PRIMARY}`)"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
-      - "traefik.http.routers.traefik.service=api@internal"
-
   n8n:
-    profiles: ["linux"]
+    profiles: ["windows"]
     image: n8nio/n8n:latest
     container_name: n8n
     ports:
@@ -60,15 +20,6 @@ services:
     networks:
       - intranet
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.n8n-eaglesight.rule=Host(`${N8N_SUBDOMAIN}.${DOMAIN_PRIMARY}`)"
-      - "traefik.http.routers.n8n-eaglesight.entrypoints=websecure"
-      - "traefik.http.routers.n8n-eaglesight.tls.certresolver=cloudflare"
-      - "traefik.http.routers.n8n-codewithtyler.rule=Host(`${N8N_SUBDOMAIN}.${DOMAIN_SECONDARY}`)"
-      - "traefik.http.routers.n8n-codewithtyler.entrypoints=websecure"
-      - "traefik.http.routers.n8n-codewithtyler.tls.certresolver=cloudflare"
-      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
 
   coolify-redis:
     profiles: ["linux"]
@@ -102,7 +53,7 @@ services:
 
   coolify:
     profiles: ["linux"]
-    image: coollabsio/coolify:v4.0.0-beta.444
+    image: coollabsio/coolify:v4.0.0-beta.452
     privileged: true
     container_name: coolify
     ports:
@@ -139,17 +90,11 @@ services:
         condition: service_started
       coolify-db:
         condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.coolify.rule=Host(`${COOLIFY_SUBDOMAIN}.${DOMAIN_PRIMARY}`)"
-      - "traefik.http.routers.coolify.entrypoints=websecure"
-      - "traefik.http.routers.coolify.tls.certresolver=cloudflare"
-      - "traefik.http.services.coolify.loadbalancer.server.port=8080"
 
   # Windows services (GPU services)
   ollama:
     profiles: ["windows"]
-    image: ollama/ollama:v0.12.11
+    image: ollama/ollama:latest
     container_name: ollama
     ports:
       - "11434:11434"
@@ -168,7 +113,7 @@ services:
 
   open-webui:
     profiles: ["windows"]
-    image: ghcr.io/open-webui/open-webui:v0.6.36
+    image: ghcr.io/open-webui/open-webui:v0.6.40
     container_name: open-webui
     ports:
       - "5000:8080"
@@ -225,6 +170,16 @@ services:
     volumes:
       - ./data/remotion:/usr/share/nginx/html
       - ./data/remotion/output:/usr/share/nginx/html/output
+    networks:
+      - intranet
+    restart: unless-stopped
+
+  # Cloudflared tunnel for Windows services (replaces Traefik)
+  cloudflared:
+    profiles: ["windows"]
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN}
     networks:
       - intranet
     restart: unless-stopped
